@@ -1,0 +1,164 @@
+# pure-javascript-react
+
+> React + TypeScript + Vite, with a pinned toolchain and static releases.
+
+### 1. Prerequisites
+
+---
+
+- macOS or Linux on ARM64 or x86-64, as configured in `flake.nix`.
+- Install [Nix](https://nix.dev/install-nix).
+- Windows: run `wsl --install` in administrator PowerShell; after restarting and completing Linux user setup, run `wsl -- bash -lc "<INSTALL_INSTRUCTION_HERE>"` and follow the [Nix Windows (WSL2) installation instructions](https://nix.dev/install-nix) to populate the placeholder.
+- Network access for uncached toolchains and dependencies.
+
+Run the commands below from the repository root.
+
+Optional shortcut: configure `ub` as an alias for `./universal-build`:
+
+- Zsh/Bash: add `alias ub='./universal-build'` to `~/.zshrc` or `~/.bashrc`.
+- Windows PowerShell: add `function ub { wsl -- bash -lc 'exec ./universal-build "$@"' ub @args }` to `$PROFILE` (uses the default WSL distribution with Nix installed).
+
+Restart your terminal after saving.
+
+### 2. Build and Test
+
+---
+
+#### Universal Build Contract
+
+Universal Build expects:
+
+- `universal-build` at the project root.
+- Any version of Nix on `PATH`.
+- `flake.nix` at the project root.
+- `flake.lock` at the project root, except for `clean` and initial `update-toolchain-lock`.
+- A flake input named `nixpkgs`.
+- A development shell named `buildtime`.
+- `buildtime.BUILD_COMMAND` must contain the shell command to run for `build`.
+- `BUILD_COMMAND` must resolve dependencies and enforce dependency locks.
+- `BUILD_COMMAND` must compile the application as needed.
+- `BUILD_COMMAND` must run tests and checks.
+- `BUILD_COMMAND` must stage all deployable files to `build/release/idiomatic-artifacts/`.
+- `buildtime.RELEASE_TYPE` set to `container` or `static`.
+- `buildtime.UPDATE_IDIOMATIC_LOCK_COMMAND` must contain the shell command to refresh dependency locks for `update-idiomatic-lock`.
+- `buildtime.IDE_PATH_VARS` listing space-separated environment variable names for `ide-paths`.
+- Each variable listed in `IDE_PATH_VARS` to be defined in `buildtime`.
+- A root `Dockerfile` for container releases.
+- A flake package named `runtime` for container releases.
+- The runtime package to provide executable named `ignite`.
+- The runtime package to include all runtime dependencies and environment variables.
+- `ignite` to accept the idiomatic artifacts directory as its first argument.
+- `ignite` to execute the software's main() entrypoint based on the language being used.
+
+For `build`, Universal Build recreates `build/release/` and archives its contents as `build/release-artifact.tar.gz`:
+
+- `idiomatic-artifacts/`.
+- `Dockerfile` for container releases.
+- `runtime-artifacts/` for container releases.
+- `symlink-to-absolute-ignite-script` pointing to the runtime package for container releases.
+
+#### Everyday Commands
+
+| Goal | Command |
+| --- | --- |
+| Build, test, check, and package | `./universal-build build` |
+| Remove build outputs | `./universal-build clean` |
+| Print IDE toolchain paths | `./universal-build ide-paths` |
+| Update toolchain lock | `./universal-build update-toolchain-lock` |
+| Refresh application dependency locks | `./universal-build update-idiomatic-lock` |
+
+#### Outputs
+
+- Test results: `build/quality-reports/tests/junit.xml`.
+- Coverage: `build/quality-reports/coverage/index.html` and `build/quality-reports/coverage/lcov.info`.
+- Deployable website: `build/release/idiomatic-artifacts/`.
+- Release archive: `build/release-artifact.tar.gz`.
+
+### 3. Development Workflows
+
+---
+
+#### Local Development
+
+Run the development server inside the pinned toolchain after the first build:
+
+```sh
+nix --extra-experimental-features 'nix-command flakes' develop --no-update-lock-file .#buildtime --command pnpm dev
+```
+
+To preview the production build, use the same command with `pnpm preview`.
+
+This template produces a static website. Deploy the contents of `build/release/idiomatic-artifacts/` to a static host; Node and Nix are build tools, not runtime requirements. Vite bundles application dependencies into the browser assets.
+
+#### Dependency Management
+
+Edit `package.json`:
+
+- Add: declare the package and version in `dependencies` or `devDependencies` (see appendix).
+- Remove: delete the declaration and its usages.
+- Upgrade/pin: change the version or version range.
+
+Refresh locks after adding, removing, or updating dependencies:
+
+```sh
+./universal-build update-idiomatic-lock
+```
+
+#### Toolchain Changes
+
+| Change | Files and steps |
+| --- | --- |
+| Node version | Change `chosenNode` in the buildtime shell in `flake.nix`. Review `@types/node` and TypeScript configuration together. |
+| Add a CLI tool | Add its Nix package to the development shell's `packages` in `flake.nix`. |
+| Nix package set | Change `inputs.nixpkgs.url` in `flake.nix`, then run `./universal-build update-toolchain-lock`. Review and commit `flake.nix` and `flake.lock`. |
+| pnpm version | Change `chosenPnpm` in `flake.nix`; `flake.lock` pins the exact release. |
+
+After toolchain changes, run `./universal-build build`, then run `./universal-build ide-paths` and update the IDE's Node and pnpm paths.
+
+### 4. IDE Setup
+
+---
+
+Print the pinned Node and pnpm locations:
+
+```sh
+./universal-build ide-paths
+```
+
+Use `NODE_BINARY` for Node and `PNPM_BINARY` for pnpm. The TypeScript SDK becomes available after the first `./universal-build build`, at the repository's `node_modules/typescript/lib` directory; use its absolute path.
+
+Configure your IDE using these paths:
+
+- [IntelliJ IDEA Ultimate setup](https://app.notion.com/p/f4c0a2b7875583b79fa5015d58412fea)
+- [Visual Studio Code setup](https://app.notion.com/p/4fd0a2b787558204a6c001d0b034f698)
+
+Reprint the toolchain paths after Nix/toolchain changes.
+
+### 5. Concepts
+
+---
+
+- [Product Release Pipelines Across Repositories](https://app.notion.com/p/3f90a2b7875581ef953bca201941e0dd)
+- [Deployment Testing and Promotion](https://app.notion.com/p/3f90a2b7875581de812ffaddc1e44b83)
+- [Shutdown Concepts](https://app.notion.com/p/4080a2b78755818a93b6c7ffa13a809d)
+
+### 6. Appendix
+
+---
+
+#### Dependency Declarations
+
+| `package.json` field | Use |
+| --- | --- |
+| `dependencies` | Runtime dependencies |
+| `devDependencies` | Build, test, and editor tools |
+| `optionalDependencies` | Dependencies whose installation may fail |
+| `peerDependencies` | Compatibility requirements for a consuming application's dependencies |
+
+Reference: [pnpm package.json](https://pnpm.io/10.x/package_json).
+
+### License
+
+---
+
+All rights reserved. See [LICENSE](LICENSE).

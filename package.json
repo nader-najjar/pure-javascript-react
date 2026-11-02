@@ -1,0 +1,39 @@
+{
+  "name": "pure-javascript-react",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "pnpm install --frozen-lockfile && pnpm run check && pnpm run test && pnpm run compile",
+    "check": "tsc -p tsconfig.json && eslint --max-warnings 0 . && depcruise src && knip",
+    "test": "vitest run",
+    "compile": "vite build",
+    "dev": "vite --host 127.0.0.1",
+    "preview": "vite preview --host 127.0.0.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@stylistic/eslint-plugin": "5.10.0",
+    "@testing-library/react": "16.3.3",
+    "@types/node": "^24.19.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "@vitest/coverage-v8": "5.0.3",
+    "dependency-cruiser": "18.5.0",
+    "eslint": "^10.11.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "eslint-plugin-sonarjs": "4.2.2",
+    "eslint-plugin-unicorn": "76.0.0",
+    "globals": "17.13.0",
+    "jsdom": "30.1.3",
+    "knip": "6.39.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "8.71.0",
+    "vite": "8.3.5",
+    "vitest": "5.0.3"
+  },
+  "dependencies": {
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  }
+}
